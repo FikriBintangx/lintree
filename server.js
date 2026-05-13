@@ -1,43 +1,26 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const { createClient } = require('@libsql/client');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
 
-// Turso Connection Check
-if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
-    console.error('CRITICAL: Turso Environment Variables are MISSING!');
+// Supabase Connection Check
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+    console.error('CRITICAL: Supabase URL or Anon Key is MISSING!');
 }
 
-const db = createClient({
-  url: process.env.TURSO_DATABASE_URL || '',
-  authToken: process.env.TURSO_AUTH_TOKEN || '',
-});
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Initialize Database Table
-async function initDb() {
-    try {
-        await db.execute(`
-            CREATE TABLE IF NOT EXISTS links (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                url TEXT,
-                icon TEXT,
-                type TEXT DEFAULT 'link',
-                image_url TEXT
-            )
-        `);
-        console.log('Turso Database Initialized');
-    } catch (err) {
-        console.error('Database Init Error:', err);
-    }
-}
-initDb();
+// Supabase REST API doesn't support CREATE TABLE directly
+// The 'links' table must be created manually in Supabase SQL Editor
+console.log('Using Supabase JS Client');
 
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
@@ -49,8 +32,13 @@ app.get('/', (req, res) => {
 // API Routes
 app.get('/api/links', async (req, res) => {
     try {
-        const result = await db.execute("SELECT * FROM links ORDER BY id DESC");
-        res.json(result.rows);
+        const { data, error } = await supabase
+            .from('links')
+            .select('*')
+            .order('id', { ascending: false });
+
+        if (error) throw error;
+        res.json(data);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -59,10 +47,13 @@ app.get('/api/links', async (req, res) => {
 app.post('/api/links', async (req, res) => {
     const { title, url, icon, type, image_base64 } = req.body;
     try {
-        await db.execute({
-            sql: "INSERT INTO links (title, url, icon, type, image_url) VALUES (?, ?, ?, ?, ?)",
-            args: [title, url, icon, type || 'link', image_base64 || null]
-        });
+        const { error } = await supabase
+            .from('links')
+            .insert([
+                { title, url, icon, type: type || 'link', image_url: image_base64 || null }
+            ]);
+            
+        if (error) throw error;
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -74,17 +65,17 @@ const updateHandler = async (req, res) => {
     const id = req.params.id;
     const { title, url, icon, type, image_base64 } = req.body;
     try {
+        const updateData = { title, url, icon, type };
         if (image_base64) {
-            await db.execute({
-                sql: "UPDATE links SET title = ?, url = ?, icon = ?, type = ?, image_url = ? WHERE id = ?",
-                args: [title, url, icon, type, image_base64, id]
-            });
-        } else {
-            await db.execute({
-                sql: "UPDATE links SET title = ?, url = ?, icon = ?, type = ? WHERE id = ?",
-                args: [title, url, icon, type, id]
-            });
+            updateData.image_url = image_base64;
         }
+
+        const { error } = await supabase
+            .from('links')
+            .update(updateData)
+            .eq('id', id);
+
+        if (error) throw error;
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -97,10 +88,12 @@ app.put('/api/links/:id', updateHandler);
 app.delete('/api/links/:id', async (req, res) => {
     const id = req.params.id;
     try {
-        await db.execute({
-            sql: "DELETE FROM links WHERE id = ?",
-            args: [id]
-        });
+        const { error } = await supabase
+            .from('links')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
