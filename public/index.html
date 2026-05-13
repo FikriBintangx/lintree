@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StaRr .CO | Creator Profile</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="creator-label">CREATOR PROFILE</div>
+            <div class="logo-container">
+                <div class="logo">
+                    <h1>StaRr <span>.CO</span></h1>
+                    <div class="logo-sub">WEB & APP DEVELOPER<br>EST.2025</div>
+                </div>
+            </div>
+            <p class="tagline">WEB & APP ( SOON ) EST.2025</p>
+        </header>
+
+        <!-- Main Content -->
+        <main id="links-container" class="links-list">
+            <!-- Links will be loaded here -->
+        </main>
+
+        <!-- Bottom Grid -->
+        <section id="cards-container" class="cards-grid">
+            <!-- Cards will be loaded here -->
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="social-links">
+                <a href="#">Instagram</a>
+                <a href="#">Twitter</a>
+                <a href="#">LinkedIn</a>
+            </div>
+            <p class="copyright">&copy; 2025 StaRr .CO</p>
+            <p class="branding">StaRr .CO</p>
+        </footer>
+    </div>
+
+    <!-- Dynamic Island Notification -->
+    <div id="dynamic-island-container">
+        <div id="dynamic-island">
+            <div class="island-content">
+                <i id="island-icon" data-lucide="info"></i>
+                <span id="island-text">Notification</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard (Sliding Panel) -->
+    <div id="admin-dashboard" class="admin-overlay">
+        <div class="admin-panel">
+            <div class="admin-header">
+                <h2>Admin Dashboard</h2>
+                <button id="close-admin" class="close-btn"><i data-lucide="x"></i></button>
+            </div>
+            
+            <div class="admin-layout">
+                <!-- Left: List -->
+                <div class="admin-list-pane">
+                    <div class="admin-actions">
+                        <button id="add-link-btn" class="primary-btn">
+                            <i data-lucide="plus"></i> Create New Link
+                        </button>
+                    </div>
+                    <div id="admin-links-list" class="admin-table">
+                        <!-- Admin items will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Right: Sliding Form Pane -->
+                <div id="admin-form-pane" class="admin-form-pane">
+                    <div class="form-header">
+                        <h3 id="form-title">Add New Link</h3>
+                        <button id="close-form" class="icon-btn"><i data-lucide="chevron-right"></i></button>
+                    </div>
+                    <form id="add-link-form" class="premium-form">
+                        <input type="hidden" id="edit-id">
+                        <div class="form-group">
+                            <label>Title</label>
+                            <input type="text" id="title" required placeholder="e.g. My Portfolio">
+                        </div>
+                        <div class="form-group">
+                            <label>URL</label>
+                            <input type="text" id="url" required placeholder="example.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Type</label>
+                            <select id="type">
+                                <option value="link">Standard Link</option>
+                                <option value="card">Grid Card</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Icon (Lucide name)</label>
+                            <input type="text" id="icon" placeholder="rocket, mail, instagram...">
+                        </div>
+                        <div class="form-group">
+                            <label>Background Image</label>
+                            <div class="file-input-wrapper">
+                                <input type="file" id="image-file" accept="image/*">
+                                <span>Choose Image</span>
+                            </div>
+                            <img id="image-preview" src="#" alt="Preview" style="display:none; width: 100%; border-radius: 12px; margin-top: 1rem; border: 1px solid #eee;">
+                        </div>
+                        <div class="form-footer">
+                            <button type="submit" class="save-btn">Save Changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
