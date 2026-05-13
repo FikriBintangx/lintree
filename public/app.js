@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let allLinks = [];
     let clickCount = 0;
+    let currentBase64 = null;
 
     function renderIcon(iconName, className = '') {
         if (!iconName) return '';
@@ -151,9 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
             icon: document.getElementById('icon').value
         };
         
-        const imageFile = document.getElementById('image-file').files[0];
-        if (imageFile) {
-            payload.image_base64 = await toBase64(imageFile);
+        if (currentBase64) {
+            payload.image_base64 = currentBase64;
         }
 
         const endpoint = editId ? `/api/links/${editId}` : '/api/links';
@@ -179,16 +179,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('image-file').addEventListener('change', function(e) {
+    document.getElementById('image-file').addEventListener('change', async function(e) {
         const file = e.target.files[0];
         const preview = document.getElementById('image-preview');
         if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                preview.src = e.target.result;
+            currentBase64 = await toBase64(file);
+            preview.src = currentBase64;
+            preview.style.display = 'block';
+        }
+    });
+
+    // Paste Image Support
+    document.addEventListener('paste', async (e) => {
+        if (!adminLayout.classList.contains('editing')) return;
+
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (const item of items) {
+            if (item.type.indexOf('image') !== -1) {
+                const blob = item.getAsFile();
+                currentBase64 = await toBase64(blob);
+                const preview = document.getElementById('image-preview');
+                preview.src = currentBase64;
                 preview.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
+                showNotification('Image Pasted!', 'success', 'image');
+                break;
+            }
         }
     });
 
@@ -205,9 +220,11 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const preview = document.getElementById('image-preview');
         if (item.image_url) {
+            currentBase64 = item.image_url;
             preview.src = item.image_url;
             preview.style.display = 'block';
         } else {
+            currentBase64 = null;
             preview.style.display = 'none';
         }
         adminLayout.classList.add('editing');
@@ -224,6 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addBtn.addEventListener('click', () => {
         formTitle.innerText = 'Add New Link';
         editIdInput.value = '';
+        currentBase64 = null;
         addForm.reset();
         document.getElementById('image-preview').style.display = 'none';
         adminLayout.classList.add('editing');
