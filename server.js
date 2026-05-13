@@ -1,5 +1,4 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -7,12 +6,12 @@ const multer = require('multer');
 const app = express();
 const PORT = process.env.PORT || 3005;
 
-// Vercel compatibility: Use /tmp for SQLite
+// Vercel compatibility: Use /tmp for DB if on Vercel
 const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
-const DB_PATH = isVercel ? '/tmp/database.db' : path.join(__dirname, 'database.db');
+const DB_FILE = isVercel ? '/tmp/db.json' : path.join(__dirname, 'db.json');
 const UPLOADS_DIR = path.join(__dirname, 'public/uploads');
 
-// Ensure uploads directory exists (only locally, Vercel is read-only)
+// Ensure uploads directory exists (local only)
 if (!isVercel && !fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
@@ -20,121 +19,90 @@ if (!isVercel && !fs.existsSync(UPLOADS_DIR)) {
 app.use(express.json());
 app.use(express.static('public'));
 
-// Multer setup for image uploads
+// Helper to read/write JSON "database"
+function getDb() {
+    if (!fs.existsSync(DB_FILE)) {
+        const initialData = [
+            { id: 1, title: "Instagram", url: "https://instagram.com/starr.co", icon: "instagram", type: "link" },
+            { id: 2, title: "Our Portfolio", url: "https://portfolio.starr.co", icon: "arrow-right", type: "link" },
+            { id: 3, title: "Web Design", url: "#", icon: "layout", type: "card", image_url: "/web_design.png" }
+        ];
+        fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
+        return initialData;
+    }
+    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+}
+
+function saveDb(data) {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+}
+
+// Multer setup
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, path.join(__dirname, 'public', 'uploads')),
+    destination: (req, file, cb) => {
+        // On Vercel, we can't really store files permanently, but we'll try /tmp
+        const dest = isVercel ? '/tmp' : UPLOADS_DIR;
+        cb(null, dest);
+    },
     filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
 const upload = multer({ storage });
 
-// Initialize Database
-const db = new sqlite3.Database(DB_PATH, (err) => {
-    if (err) console.error('Error opening database', err);
-    else initializeTables();
-});
-
-function initializeTables() {
-    db.serialize(() => {
-        db.run(`CREATE TABLE IF NOT EXISTS links (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            url TEXT NOT NULL,
-            icon TEXT,
-            type TEXT DEFAULT 'link',
-            image_url TEXT,
-            order_index INTEGER DEFAULT 0
-        )`, (err) => {
-            if (!err) {
-                db.get("SELECT COUNT(*) as count FROM links", (err, row) => {
-                    if (row && row.count === 0) {
-                        const stmt = db.prepare("INSERT INTO links (title, url, icon, type) VALUES (?, ?, ?, ?)");
-                        stmt.run("Instagram", "https://instagram.com/starr.co", "instagram", "link");
-                        stmt.run("Web Design", "#", "layout", "card");
-                        stmt.finalize();
-                    }
-                });
-            }
-        });
-    });
-}
-
 app.get('/favicon.ico', (req, res) => res.status(204).end());
-
-// Test Route
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // API Routes
 app.get('/api/links', (req, res) => {
-    db.all("SELECT * FROM links ORDER BY order_index ASC", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    res.json(getDb());
 });
 
 app.post('/api/links', upload.single('image'), (req, res) => {
-    const { title, url, icon, type, order_index } = req.body;
-    const image_url = req.file ? `/uploads/${req.file.filename}` : null;
-    
-    db.run(
-        "INSERT INTO links (title, url, icon, type, image_url, order_index) VALUES (?, ?, ?, ?, ?, ?)",
-        [title, url, icon, type || 'link', image_url, order_index || 0],
-        function(err) {
-            if (err) return res.status(400).json({ error: err.message });
-            res.json({ id: this.lastID, image_url });
-        }
-    );
-});
-
-app.get('/api/links/:id', (req, res) => {
-    let id = req.params.id.replace(/\D/g, '');
-    db.get("SELECT * FROM links WHERE id = ?", [id], (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        if (!row) return res.status(404).json({ error: 'Not found' });
-        res.json(row);
-    });
-});
-
-// Flexible route for updates (works with POST or PUT)
-const updateHandler = (req, res) => {
     const { title, url, icon, type } = req.body;
-    let rawId = req.params.id;
-    
-    let id = (rawId.match(/\d+/) || [rawId])[0];
-    
-    console.log(`[UPDATE] Request for ID: ${rawId} -> Cleaned: ${id}`);
-    
-    let query = "UPDATE links SET title = ?, url = ?, icon = ?, type = ? WHERE id = ?";
-    let params = [title, url, icon, type, id];
+    const db = getDb();
+    const newLink = {
+        id: Date.now(),
+        title,
+        url,
+        icon,
+        type: type || 'link',
+        image_url: req.file ? `/uploads/${req.file.filename}` : null
+    };
+    db.push(newLink);
+    saveDb(db);
+    res.json(newLink);
+});
 
-    if (req.file) {
-        query = "UPDATE links SET title = ?, url = ?, icon = ?, type = ?, image_url = ? WHERE id = ?";
-        params = [title, url, icon, type, `/uploads/${req.file.filename}`, id];
+// Update Route (Supports POST and PUT)
+const updateHandler = (req, res) => {
+    const id = parseInt(req.params.id);
+    const { title, url, icon, type } = req.body;
+    let db = getDb();
+    const index = db.findIndex(l => l.id === id);
+
+    if (index !== -1) {
+        db[index] = {
+            ...db[index],
+            title,
+            url,
+            icon,
+            type: type || db[index].type,
+            image_url: req.file ? `/uploads/${req.file.filename}` : db[index].image_url
+        };
+        saveDb(db);
+        res.json(db[index]);
+    } else {
+        res.status(404).json({ error: 'Link not found' });
     }
-
-    db.run(query, params, function(err) {
-        if (err) {
-            console.error('Database Error:', err.message);
-            return res.status(400).json({ error: err.message });
-        }
-        res.json({ success: true, changes: this.changes, id: id });
-    });
 };
 
 app.post('/api/links/:id', upload.single('image'), updateHandler);
 app.put('/api/links/:id', upload.single('image'), updateHandler);
 
 app.delete('/api/links/:id', (req, res) => {
-    const id = req.params.id.replace(/\D/g, '');
-    db.run("DELETE FROM links WHERE id = ?", [id], function(err) {
-        if (err) return res.status(400).json({ error: err.message });
-        res.json({ deleted: this.changes });
-    });
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Global Error:', err);
-    res.status(500).json({ error: 'Internal Server Error', details: err.message });
+    const id = parseInt(req.params.id);
+    let db = getDb();
+    const filtered = db.filter(l => l.id !== id);
+    saveDb(filtered);
+    res.json({ success: true });
 });
 
 app.listen(PORT, () => {
