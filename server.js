@@ -1,35 +1,39 @@
+require('dotenv').config();
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
+const { createClient } = require('@libsql/client');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
 
-// Vercel compatibility: Use /tmp for DB if on Vercel
-const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
-const DB_FILE = isVercel ? '/tmp/db.json' : path.join(__dirname, 'db.json');
+// Turso Connection
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
 
-// Increase JSON limit for Base64 images
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Helper to read/write JSON "database"
-function getDb() {
-    if (!fs.existsSync(DB_FILE)) {
-        const initialData = [
-            { id: 1, title: "Instagram", url: "https://instagram.com/starr.co", icon: "instagram", type: "link" },
-            { id: 2, title: "Our Portfolio", url: "https://portfolio.starr.co", icon: "arrow-right", type: "link" },
-            { id: 3, title: "Web Design", url: "#", icon: "layout", type: "card" }
-        ];
-        fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
-        return initialData;
+// Initialize Database Table
+async function initDb() {
+    try {
+        await db.execute(`
+            CREATE TABLE IF NOT EXISTS links (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                url TEXT,
+                icon TEXT,
+                type TEXT DEFAULT 'link',
+                image_url TEXT
+            )
+        `);
+        console.log('Turso Database Initialized');
+    } catch (err) {
+        console.error('Database Init Error:', err);
     }
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
 }
-
-function saveDb(data) {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-}
+initDb();
 
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
@@ -39,58 +43,64 @@ app.get('/', (req, res) => {
 });
 
 // API Routes
-app.get('/api/links', (req, res) => {
-    res.json(getDb());
+app.get('/api/links', async (req, res) => {
+    try {
+        const result = await db.execute("SELECT * FROM links ORDER BY id DESC");
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-app.post('/api/links', (req, res) => {
+app.post('/api/links', async (req, res) => {
     const { title, url, icon, type, image_base64 } = req.body;
-    const db = getDb();
-    const newLink = {
-        id: Date.now(),
-        title,
-        url,
-        icon,
-        type: type || 'link',
-        image_url: image_base64 || null
-    };
-    db.push(newLink);
-    saveDb(db);
-    res.json(newLink);
+    try {
+        await db.execute({
+            sql: "INSERT INTO links (title, url, icon, type, image_url) VALUES (?, ?, ?, ?, ?)",
+            args: [title, url, icon, type || 'link', image_base64 || null]
+        });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Update Route
-const updateHandler = (req, res) => {
-    const id = parseInt(req.params.id);
+const updateHandler = async (req, res) => {
+    const id = req.params.id;
     const { title, url, icon, type, image_base64 } = req.body;
-    let db = getDb();
-    const index = db.findIndex(l => l.id === id);
-
-    if (index !== -1) {
-        db[index] = {
-            ...db[index],
-            title,
-            url,
-            icon,
-            type: type || db[index].type,
-            image_url: image_base64 || db[index].image_url
-        };
-        saveDb(db);
-        res.json(db[index]);
-    } else {
-        res.status(404).json({ error: 'Link not found' });
+    try {
+        if (image_base64) {
+            await db.execute({
+                sql: "UPDATE links SET title = ?, url = ?, icon = ?, type = ?, image_url = ? WHERE id = ?",
+                args: [title, url, icon, type, image_base64, id]
+            });
+        } else {
+            await db.execute({
+                sql: "UPDATE links SET title = ?, url = ?, icon = ?, type = ? WHERE id = ?",
+                args: [title, url, icon, type, id]
+            });
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 };
 
 app.post('/api/links/:id', updateHandler);
 app.put('/api/links/:id', updateHandler);
 
-app.delete('/api/links/:id', (req, res) => {
-    const id = parseInt(req.params.id);
-    let db = getDb();
-    const filtered = db.filter(l => l.id !== id);
-    saveDb(filtered);
-    res.json({ success: true });
+app.delete('/api/links/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        await db.execute({
+            sql: "DELETE FROM links WHERE id = ?",
+            args: [id]
+        });
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 app.listen(PORT, () => {
