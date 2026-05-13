@@ -18,7 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let allLinks = [];
     let clickCount = 0;
-    let currentBase64 = null;
+    let currentIconBase64 = null;
+    let currentBgBase64 = null;
 
     function renderIcon(iconName, className = '') {
         if (!iconName) return '';
@@ -154,12 +155,9 @@ document.addEventListener('DOMContentLoaded', () => {
             title: document.getElementById('title').value,
             url: url,
             type: document.getElementById('type').value,
-            icon: document.getElementById('icon').value
+            icon: currentIconBase64 || document.getElementById('icon').value,
+            image_base64: currentBgBase64
         };
-        
-        if (currentBase64) {
-            payload.image_base64 = currentBase64;
-        }
 
         const endpoint = editId ? `/api/links/${editId}` : '/api/links';
 
@@ -188,9 +186,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = e.target.files[0];
         const preview = document.getElementById('image-preview');
         if (file) {
-            currentBase64 = await toBase64(file);
-            preview.src = currentBase64;
+            currentBgBase64 = await toBase64(file);
+            preview.src = currentBgBase64;
             preview.style.display = 'block';
+        }
+    });
+
+    document.getElementById('icon-file').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        const preview = document.getElementById('icon-preview');
+        if (file) {
+            currentIconBase64 = await toBase64(file);
+            preview.src = currentIconBase64;
+            preview.style.display = 'block';
+            document.getElementById('icon').value = ''; // Clear text input if image is chosen
         }
     });
 
@@ -202,11 +211,24 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const item of items) {
             if (item.type.indexOf('image') !== -1) {
                 const blob = item.getAsFile();
-                currentBase64 = await toBase64(blob);
-                const preview = document.getElementById('image-preview');
-                preview.src = currentBase64;
-                preview.style.display = 'block';
-                showNotification('Image Pasted!', 'success', 'image');
+                const base64 = await toBase64(blob);
+                
+                // Determine where to paste: Icon or Background
+                const activeId = document.activeElement.id;
+                if (activeId === 'icon' || activeId === 'icon-file') {
+                    currentIconBase64 = base64;
+                    const preview = document.getElementById('icon-preview');
+                    preview.src = base64;
+                    preview.style.display = 'block';
+                    document.getElementById('icon').value = ''; 
+                    showNotification('Icon Pasted!', 'success', 'image');
+                } else {
+                    currentBgBase64 = base64;
+                    const preview = document.getElementById('image-preview');
+                    preview.src = base64;
+                    preview.style.display = 'block';
+                    showNotification('Background Image Pasted!', 'success', 'image');
+                }
                 break;
             }
         }
@@ -221,16 +243,27 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('title').value = item.title;
         document.getElementById('url').value = item.url;
         document.getElementById('type').value = item.type;
-        document.getElementById('icon').value = item.icon || '';
         
-        const preview = document.getElementById('image-preview');
-        if (item.image_url) {
-            currentBase64 = item.image_url;
-            preview.src = item.image_url;
-            preview.style.display = 'block';
+        const iconPreview = document.getElementById('icon-preview');
+        if (item.icon && (item.icon.startsWith('data:') || item.icon.includes('.'))) {
+            currentIconBase64 = item.icon;
+            iconPreview.src = item.icon;
+            iconPreview.style.display = 'block';
+            document.getElementById('icon').value = '';
         } else {
-            currentBase64 = null;
-            preview.style.display = 'none';
+            currentIconBase64 = null;
+            iconPreview.style.display = 'none';
+            document.getElementById('icon').value = item.icon || '';
+        }
+
+        const bgPreview = document.getElementById('image-preview');
+        if (item.image_url) {
+            currentBgBase64 = item.image_url;
+            bgPreview.src = item.image_url;
+            bgPreview.style.display = 'block';
+        } else {
+            currentBgBase64 = null;
+            bgPreview.style.display = 'none';
         }
         adminLayout.classList.add('editing');
     };
@@ -246,8 +279,10 @@ document.addEventListener('DOMContentLoaded', () => {
     addBtn.addEventListener('click', () => {
         formTitle.innerText = 'Add New Link';
         editIdInput.value = '';
-        currentBase64 = null;
+        currentIconBase64 = null;
+        currentBgBase64 = null;
         addForm.reset();
+        document.getElementById('icon-preview').style.display = 'none';
         document.getElementById('image-preview').style.display = 'none';
         adminLayout.classList.add('editing');
     });
