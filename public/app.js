@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 linkEl.target = '_blank';
                 linkEl.innerHTML = `
                     <span>${item.title}</span>
-                    ${renderIcon(item.icon || 'arrow-right')}
+                    ${item.image_url ? renderIcon(item.image_url) : renderIcon(item.icon || 'arrow-right')}
                 `;
                 linksContainer.appendChild(linkEl);
             } else if (item.type === 'card') {
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
             adminItem.innerHTML = `
                 <div class="admin-item-info">
                     <div class="admin-item-icon">
-                        ${renderIcon(item.icon || 'link')}
+                        ${item.image_url ? renderIcon(item.image_url) : renderIcon(item.icon || 'link')}
                     </div>
                     <div class="admin-item-text">
                         <h4>${item.title}</h4>
