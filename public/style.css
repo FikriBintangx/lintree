@@ -107,8 +107,14 @@ body {
     height: 100%;
     background: #f8f9fa;
     z-index: 2000;
-    padding: 2rem;
+    padding: 1rem;
     overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+    .admin-overlay {
+        padding: 0;
+    }
 }
 
 .admin-overlay.active {
@@ -123,6 +129,14 @@ body {
     border-radius: 24px;
     box-shadow: 0 20px 60px rgba(0,0,0,0.05);
     min-height: 80vh;
+}
+
+@media (max-width: 768px) {
+    .admin-panel {
+        padding: 1.5rem;
+        border-radius: 0;
+        min-height: 100vh;
+    }
 }
 
 .admin-layout {
@@ -159,6 +173,27 @@ body {
     transform: translateX(0);
     border-left: 1px solid #eee;
     padding-left: 2rem;
+}
+
+@media (max-width: 1024px) {
+    .admin-layout.editing .admin-list-pane {
+        flex: 0.5;
+    }
+    .admin-layout.editing .admin-form-pane {
+        width: 50%;
+    }
+}
+
+@media (max-width: 768px) {
+    .admin-layout.editing .admin-list-pane {
+        display: none;
+    }
+    .admin-layout.editing .admin-form-pane {
+        width: 100%;
+        border-left: none;
+        padding-left: 0;
+        transform: none;
+    }
 }
 
 .admin-header {
@@ -300,6 +335,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .admin-item-text h4 {
@@ -337,6 +373,23 @@ body {
     border-color: #000;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 768px) {
+    .admin-item {
+        padding: 0.75rem;
+    }
+    .admin-item-icon {
+        width: 40px;
+        height: 40px;
+    }
+    .admin-item-text h4 {
+        font-size: 0.875rem;
+    }
+    .edit-btn, .delete-btn {
+        width: 32px;
+        height: 32px;
+    }
 }
 
 .delete-btn:hover {
