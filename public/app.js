@@ -76,8 +76,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 linkEl.className = 'link-item';
                 linkEl.target = '_blank';
                 linkEl.innerHTML = `
+                    <div class="link-icon-wrapper">
+                        ${item.image_url ? renderIcon(item.image_url) : renderIcon(item.icon || 'arrow-right')}
+                    </div>
                     <span>${item.title}</span>
-                    ${item.image_url ? renderIcon(item.image_url) : renderIcon(item.icon || 'arrow-right')}
                 `;
                 linksContainer.appendChild(linkEl);
             } else if (item.type === 'card') {

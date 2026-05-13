@@ -365,11 +365,12 @@ body {
 .link-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 1.25rem;
     background: #000;
     color: #fff;
-    padding: 1.25rem 1.5rem;
-    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
     text-decoration: none;
     transition: var(--transition);
     border: 1px solid transparent;
@@ -388,9 +389,19 @@ body {
     font-size: 1rem;
 }
 
-.link-item i {
-    width: 20px;
-    height: 20px;
+.link-item i, .link-item .custom-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.link-icon-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
 }
 
 /* Cards Grid */
