@@ -6,11 +6,14 @@ const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
-const DB_PATH = path.join(__dirname, 'database.db');
+
+// Vercel compatibility: Use /tmp for SQLite
+const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
+const DB_PATH = isVercel ? '/tmp/database.db' : path.join(__dirname, 'database.db');
 const UPLOADS_DIR = path.join(__dirname, 'public/uploads');
 
-// Ensure uploads directory exists
-if (!fs.existsSync(UPLOADS_DIR)) {
+// Ensure uploads directory exists (only locally, Vercel is read-only)
+if (!isVercel && !fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
@@ -32,7 +35,6 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
 
 function initializeTables() {
     db.serialize(() => {
-        // Links Table
         db.run(`CREATE TABLE IF NOT EXISTS links (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
@@ -41,13 +43,16 @@ function initializeTables() {
             type TEXT DEFAULT 'link',
             image_url TEXT,
             order_index INTEGER DEFAULT 0
-        )`);
-
-        // Check if image_url column exists (simple migration)
-        db.all("PRAGMA table_info(links)", (err, rows) => {
-            const hasImageUrl = rows.some(row => row.name === 'image_url');
-            if (!hasImageUrl) {
-                db.run("ALTER TABLE links ADD COLUMN image_url TEXT");
+        )`, (err) => {
+            if (!err) {
+                db.get("SELECT COUNT(*) as count FROM links", (err, row) => {
+                    if (row && row.count === 0) {
+                        const stmt = db.prepare("INSERT INTO links (title, url, icon, type) VALUES (?, ?, ?, ?)");
+                        stmt.run("Instagram", "https://instagram.com/starr.co", "instagram", "link");
+                        stmt.run("Web Design", "#", "layout", "card");
+                        stmt.finalize();
+                    }
+                });
             }
         });
     });
