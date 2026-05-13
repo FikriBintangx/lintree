@@ -1,7 +1,6 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3005;
@@ -9,20 +8,10 @@ const PORT = process.env.PORT || 3005;
 // Vercel compatibility: Use /tmp for DB if on Vercel
 const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production';
 const DB_FILE = isVercel ? '/tmp/db.json' : path.join(__dirname, 'db.json');
-const UPLOADS_DIR = path.join(__dirname, 'public/uploads');
 
-// Ensure uploads directory exists (local only)
-if (!isVercel && !fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-
-app.use(express.json());
+// Increase JSON limit for Base64 images
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Root route to serve index.html
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 // Helper to read/write JSON "database"
 function getDb() {
@@ -30,7 +19,7 @@ function getDb() {
         const initialData = [
             { id: 1, title: "Instagram", url: "https://instagram.com/starr.co", icon: "instagram", type: "link" },
             { id: 2, title: "Our Portfolio", url: "https://portfolio.starr.co", icon: "arrow-right", type: "link" },
-            { id: 3, title: "Web Design", url: "#", icon: "layout", type: "card", image_url: "/web_design.png" }
+            { id: 3, title: "Web Design", url: "#", icon: "layout", type: "card" }
         ];
         fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
         return initialData;
@@ -42,26 +31,20 @@ function saveDb(data) {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
 }
 
-// Multer setup
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        // On Vercel, we can't really store files permanently, but we'll try /tmp
-        const dest = isVercel ? '/tmp' : UPLOADS_DIR;
-        cb(null, dest);
-    },
-    filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
-});
-const upload = multer({ storage });
-
 app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+// Root route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // API Routes
 app.get('/api/links', (req, res) => {
     res.json(getDb());
 });
 
-app.post('/api/links', upload.single('image'), (req, res) => {
-    const { title, url, icon, type } = req.body;
+app.post('/api/links', (req, res) => {
+    const { title, url, icon, type, image_base64 } = req.body;
     const db = getDb();
     const newLink = {
         id: Date.now(),
@@ -69,17 +52,17 @@ app.post('/api/links', upload.single('image'), (req, res) => {
         url,
         icon,
         type: type || 'link',
-        image_url: req.file ? `/uploads/${req.file.filename}` : null
+        image_url: image_base64 || null
     };
     db.push(newLink);
     saveDb(db);
     res.json(newLink);
 });
 
-// Update Route (Supports POST and PUT)
+// Update Route
 const updateHandler = (req, res) => {
     const id = parseInt(req.params.id);
-    const { title, url, icon, type } = req.body;
+    const { title, url, icon, type, image_base64 } = req.body;
     let db = getDb();
     const index = db.findIndex(l => l.id === id);
 
@@ -90,7 +73,7 @@ const updateHandler = (req, res) => {
             url,
             icon,
             type: type || db[index].type,
-            image_url: req.file ? `/uploads/${req.file.filename}` : db[index].image_url
+            image_url: image_base64 || db[index].image_url
         };
         saveDb(db);
         res.json(db[index]);
@@ -99,8 +82,8 @@ const updateHandler = (req, res) => {
     }
 };
 
-app.post('/api/links/:id', upload.single('image'), updateHandler);
-app.put('/api/links/:id', upload.single('image'), updateHandler);
+app.post('/api/links/:id', updateHandler);
+app.put('/api/links/:id', updateHandler);
 
 app.delete('/api/links/:id', (req, res) => {
     const id = parseInt(req.params.id);

@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let allLinks = [];
     let clickCount = 0;
 
-    // Helper to render icon or image
     function renderIcon(iconName, className = '') {
         if (!iconName) return '';
         const isUrl = iconName.startsWith('http') || iconName.startsWith('/') || iconName.includes('.');
@@ -29,19 +28,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return `<i data-lucide="${iconName}" class="${className}"></i>`;
     }
 
-    // Dynamic Island Notification
     function showNotification(text, type = 'success', icon = 'check') {
         islandText.innerText = text;
         islandIcon.setAttribute('data-lucide', icon);
         island.className = `active expanded ${type}`;
         lucide.createIcons();
-        
         setTimeout(() => {
             island.classList.remove('active', 'expanded');
         }, 3000);
     }
 
-    // Secret Admin Mode Trigger
     logo.addEventListener('click', () => {
         clickCount++;
         if (clickCount === 3) {
@@ -88,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cardEl.href = item.url || '#';
                 cardEl.className = 'card-item';
                 
-                const desc = item.title === 'Web Design' ? 'Elegant & Responsive UI' : 'High Performance Apps';
+                const desc = 'Premium Project';
                 cardEl.innerHTML = `
                     <div class="card-icon">${renderIcon(item.icon || 'layout')}</div>
                     <div class="card-info">
@@ -97,7 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 `;
                 if (item.image_url) {
-                    cardEl.style.backgroundImage = `url('${item.image_url}')`;
+                    cardEl.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.2), rgba(0,0,0,0.8)), url('${item.image_url}')`;
+                    cardEl.classList.add('has-bg');
                 }
                 cardsContainer.appendChild(cardEl);
             }
@@ -130,33 +127,46 @@ document.addEventListener('DOMContentLoaded', () => {
         lucide.createIcons();
     }
 
+    // Helper to convert file to Base64
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+
     addForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         
         let url = document.getElementById('url').value;
-        if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('mailto:')) {
+        if (url && !url.startsWith('http') && !url.startsWith('mailto:')) {
             url = 'https://' + url;
         }
 
-        const formData = new FormData();
-        formData.append('title', document.getElementById('title').value);
-        formData.append('url', url);
-        formData.append('type', document.getElementById('type').value);
-        formData.append('icon', document.getElementById('icon').value);
+        const editId = editIdInput.value.trim();
+        const payload = {
+            title: document.getElementById('title').value,
+            url: url,
+            type: document.getElementById('type').value,
+            icon: document.getElementById('icon').value
+        };
         
         const imageFile = document.getElementById('image-file').files[0];
-        if (imageFile) formData.append('image', imageFile);
+        if (imageFile) {
+            payload.image_base64 = await toBase64(imageFile);
+        }
 
-        const editId = editIdInput.value.trim();
-        const method = 'POST';
         const endpoint = editId ? `/api/links/${editId}` : '/api/links';
 
         try {
-            const response = await fetch(endpoint, { method, body: formData });
+            const response = await fetch(endpoint, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
             if (response.ok) {
                 adminLayout.classList.remove('editing');
                 addForm.reset();
-                document.querySelector('.file-input-wrapper span').innerText = 'Choose Image';
                 document.getElementById('image-preview').style.display = 'none';
                 showNotification(editId ? 'Link Updated' : 'Link Created', 'success', 'check-circle');
                 fetchLinks();
@@ -171,20 +181,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('image-file').addEventListener('change', function(e) {
         const file = e.target.files[0];
-        const span = document.querySelector('.file-input-wrapper span');
         const preview = document.getElementById('image-preview');
-
         if (file) {
-            span.innerText = file.name;
             const reader = new FileReader();
             reader.onload = (e) => {
                 preview.src = e.target.result;
                 preview.style.display = 'block';
             };
             reader.readAsDataURL(file);
-        } else {
-            span.innerText = 'Choose Image';
-            preview.style.display = 'none';
         }
     });
 
@@ -206,21 +210,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             preview.style.display = 'none';
         }
-        
         adminLayout.classList.add('editing');
     };
 
     window.deleteLink = async (id) => {
-        if (!confirm('Are you sure you want to delete this?')) return;
+        if (!confirm('Are you sure?')) return;
         try {
             const response = await fetch(`/api/links/${id}`, { method: 'DELETE' });
-            if (response.ok) {
-                showNotification('Link Deleted', 'success', 'trash');
-                fetchLinks();
-            }
-        } catch (error) {
-            showNotification('Delete Failed', 'error', 'alert-triangle');
-        }
+            if (response.ok) fetchLinks();
+        } catch (error) {}
     };
 
     addBtn.addEventListener('click', () => {
@@ -228,7 +226,6 @@ document.addEventListener('DOMContentLoaded', () => {
         editIdInput.value = '';
         addForm.reset();
         document.getElementById('image-preview').style.display = 'none';
-        document.querySelector('.file-input-wrapper span').innerText = 'Choose Image';
         adminLayout.classList.add('editing');
     });
 
