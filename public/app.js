@@ -22,7 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderIcon(iconName, className = '') {
         if (!iconName) return '';
-        const isUrl = iconName.startsWith('http') || iconName.startsWith('/') || iconName.includes('.');
+        const isUrl = iconName.startsWith('http') || 
+                      iconName.startsWith('/') || 
+                      iconName.startsWith('data:') || 
+                      iconName.includes('.');
         if (isUrl) {
             return `<img src="${iconName}" class="custom-icon ${className}" alt="icon" onerror="this.src='https://api.iconify.design/lucide:link.svg'">`;
         }
