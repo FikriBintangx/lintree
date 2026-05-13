@@ -6,10 +6,14 @@ const { createClient } = require('@libsql/client');
 const app = express();
 const PORT = process.env.PORT || 3005;
 
-// Turso Connection
+// Turso Connection Check
+if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
+    console.error('CRITICAL: Turso Environment Variables are MISSING!');
+}
+
 const db = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN,
+  url: process.env.TURSO_DATABASE_URL || '',
+  authToken: process.env.TURSO_AUTH_TOKEN || '',
 });
 
 app.use(express.json({ limit: '10mb' }));
