@@ -41,14 +41,21 @@
     {
         "id": "6",
         "title": "Portfolio",
-        "url": "https://myportofoliothree.vercel.app/",
+        "url": "https://myportogweh.vercel.app/",
         "type": "link",
         "icon": "globe"
     },
     {
         "id": "7",
         "title": "Contact Me",
-        "url": "mailto:fikbintang01@gmail.com",
+        "url": "fikbintang01@gmail.com",
+        "type": "link",
+        "icon": "mail"
+    },
+    {
+        "id": "7",
+        "title": "Contact Me",
+        "url": "https://wa.me/6281292870932",
         "type": "link",
         "icon": "mail"
     }
