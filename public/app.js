@@ -43,16 +43,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 3000);
     }
 
-    // logo.addEventListener('click', () => {
-    //     clickCount++;
-    //     if (clickCount === 3) {
-    //         adminDashboard.classList.add('active');
-    //         clickCount = 0;
-    //         showNotification('Admin Mode Enabled', 'success', 'shield-check');
-    //         renderAdminList();
-    //     }
-    //     setTimeout(() => clickCount = 0, 1000);
-    // });
+    logo.addEventListener('click', () => {
+        clickCount++;
+        if (clickCount === 3) {
+            adminDashboard.classList.add('active');
+            clickCount = 0;
+            showNotification('Admin Mode Enabled', 'success', 'shield-check');
+            renderAdminList();
+        }
+        setTimeout(() => clickCount = 0, 1000);
+    });
 
     closeAdmin.addEventListener('click', () => adminDashboard.classList.remove('active'));
     closeForm.addEventListener('click', () => adminLayout.classList.remove('editing'));
