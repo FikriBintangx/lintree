@@ -3,3 +3,4 @@ public/uploads/*
 !public/uploads/.gitkeep
 database.db
 .env
+.vercel
